@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<!-- saved from url=(0071)file:///Users/Kit/Desktop/General/ByteTree%20Workflow/Team%20To-Do.html -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Team To-Do</title>
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --card: #ffffff;
+    --text: #1a1d21;
+    --muted: #6b7280;
+    --border: #e2e4e9;
+    --accent: #4f6ef7;
+    --high: #e5484d;
+    --med: #f5a623;
+    --low: #46a758;
+    --overdue-bg: #fdecec;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg); color: var(--text); padding: 20px; min-height: 100vh;
+  }
+  header {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 20px;
+  }
+  header h1 { font-size: 20px; }
+  button {
+    font: inherit; cursor: pointer; border: 1px solid var(--border);
+    background: var(--card); border-radius: 8px; padding: 8px 14px;
+  }
+  button:hover { border-color: var(--accent); color: var(--accent); }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  button.primary:hover { opacity: .9; color: #fff; }
+  select, input {
+    font: inherit; border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 10px; background: var(--card); color: var(--text);
+  }
+  .board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-items: start; }
+  @media (max-width: 800px) { .board { grid-template-columns: 1fr; } }
+  .col {
+    background: #eceef2; border-radius: 12px; padding: 12px; min-height: 200px;
+  }
+  .col.dragover { outline: 2px dashed var(--accent); outline-offset: -4px; }
+  .col h2 {
+    font-size: 13px; text-transform: uppercase; letter-spacing: .05em;
+    color: var(--muted); margin: 4px 4px 12px; display: flex; justify-content: space-between;
+  }
+  .col h2 .count { background: var(--card); border-radius: 10px; padding: 0 8px; font-weight: 600; }
+  .task {
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px; margin-bottom: 10px; cursor: grab; position: relative;
+    border-left: 4px solid var(--border);
+  }
+  .task.p-high { border-left-color: var(--high); }
+  .task.p-medium { border-left-color: var(--med); }
+  .task.p-low { border-left-color: var(--low); }
+  .task.dragging { opacity: .4; }
+  .task .title { font-weight: 600; margin-bottom: 6px; padding-right: 40px; overflow-wrap: anywhere; }
+  .task.done .title { text-decoration: line-through; color: var(--muted); }
+  .meta { display: flex; gap: 6px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+  .chip { background: var(--bg); border-radius: 6px; padding: 2px 8px; }
+  .chip.overdue { background: var(--overdue-bg); color: var(--high); font-weight: 600; }
+  .chip.assignee { background: #eef1fe; color: var(--accent); }
+  .task .actions { position: absolute; top: 8px; right: 8px; display: flex; gap: 2px; }
+  .task .actions button {
+    padding: 2px 6px; border: none; background: none; color: var(--muted); font-size: 13px;
+  }
+  .task .actions button:hover { color: var(--accent); }
+  .empty { text-align: center; color: var(--muted); font-size: 13px; padding: 20px 0; }
+  .subtasks { margin-top: 8px; border-top: 1px solid var(--border); padding-top: 8px; }
+  .subtask {
+    display: flex; align-items: center; gap: 6px; font-size: 13px;
+    padding: 2px 0; color: var(--text);
+  }
+  .subtask input[type="checkbox"] { padding: 0; margin: 0; accent-color: var(--accent); cursor: pointer; }
+  .subtask.checked span { text-decoration: line-through; color: var(--muted); }
+  .chip.progress { background: #eef7ef; color: var(--low); font-weight: 600; }
+  .sub-editor { margin-bottom: 4px; }
+  .sub-row { display: flex; gap: 6px; margin-bottom: 6px; align-items: center; }
+  .sub-row input[type="text"] { flex: 1; padding: 6px 8px; }
+  .sub-row button { padding: 4px 8px; border: none; background: none; color: var(--muted); }
+  .sub-row button:hover { color: var(--high); }
+  #addSubBtn { font-size: 13px; padding: 5px 10px; margin-bottom: 8px; }
+  .tabs { display: flex; gap: 4px; background: #eceef2; border-radius: 10px; padding: 4px; }
+  .tabs button { border: none; background: none; padding: 6px 14px; border-radius: 8px; color: var(--muted); }
+  .tabs button.active { background: var(--card); color: var(--text); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .goals { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+  .goal {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px; position: relative;
+  }
+  .goal .title { font-weight: 600; margin-bottom: 8px; padding-right: 40px; overflow-wrap: anywhere; }
+  .goal .meta { margin-bottom: 10px; }
+  .bar { background: var(--bg); border-radius: 6px; height: 10px; overflow: hidden; }
+  .bar div { height: 100%; background: var(--accent); border-radius: 6px; transition: width .2s; }
+  .bar div.hit { background: var(--low); }
+  .goal .nums { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .goal .actions { position: absolute; top: 12px; right: 10px; display: flex; gap: 2px; }
+  .goal .actions button { padding: 2px 6px; border: none; background: none; color: var(--muted); font-size: 13px; }
+  .goal .actions button:hover { color: var(--accent); }
+  .hidden { display: none !important; }
+  dialog {
+    border: none; border-radius: 12px; padding: 24px; width: min(420px, 92vw);
+    box-shadow: 0 20px 50px rgba(0,0,0,.2);
+  }
+  dialog::backdrop { background: rgba(0,0,0,.3); }
+  dialog h3 { margin-bottom: 16px; }
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+  .field input, .field select { width: 100%; }
+  .row { display: flex; gap: 10px; }
+  .row .field { flex: 1; }
+  .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+  .toolbar-note { font-size: 12px; color: var(--muted); width: 100%; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Team To-Do</h1>
+  <div class="tabs">
+    <button id="tabBoard" class="active">Board</button>
+    <button id="tabGoals" class="">Goals &amp; Targets</button>
+  </div>
+  <select id="filterAssignee" title="Filter by assignee" style="margin-left:auto" class=""><option value="">Everyone</option><option>Charlie, Kit</option><option>Charlie, Kit, Laura</option><option>Kit</option><option>Kit, Charlie, Laura</option><option>Kit, Mark</option><option>Laura</option></select>
+  <button id="exportBtn" title="Download data as JSON">Export</button>
+  <button id="importBtn" title="Load data from a JSON file">Import</button>
+  <input type="file" id="importFile" accept=".json" hidden="">
+  <button class="primary" id="addBtn">+ New task</button>
+</header>
+
+<div class="board" id="board"><div class="col" data-status="todo"><h2>To do <span class="count">3</span></h2><div class="task p-medium" draggable="true" data-id="mrm0awg6hj6e8"><div class="actions"><button title="Edit" data-act="edit">✎</button><button title="Delete" data-act="del">✕</button></div><div class="title">AI Portfolio Creation</div><div class="meta"><span class="chip assignee">Charlie, Kit</span><span class="chip">31 Jul</span><span class="chip">medium</span></div></div><div class="task p-medium" draggable="true" data-id="mrm0c5vh2tnfx"><div class="actions"><button title="Edit" data-act="edit">✎</button><button title="Delete" data-act="del">✕</button></div><div class="title">Set up Spotify Creator Account</div><div class="meta"><span class="chip assignee">Laura</span><span class="chip">31 Jul</span><span class="chip">medium</span></div></div><div class="task p-medium" draggable="true" data-id="mrm36sd5azpqz"><div class="actions"><button title="Edit" data-act="edit">✎</button><button title="Delete" data-act="del">✕</button></div><div class="title">Substack revamp</div><div class="meta"><span class="chip assignee">Charlie, Kit, Laura</span><span class="chip">21 Aug</span><span class="chip">medium</span></div></div></div><div class="col" data-status="inprogress"><h2>In progress <span class="count">3</span></h2><div class="task p-medium" draggable="true" data-id="mrm09zdxdifgk"><div class="actions"><button title="Edit" data-act="edit">✎</button><button title="Delete" data-act="del">✕</button></div><div class="title">Set up Calendly for client intro meetings</div><div class="meta"><span class="chip assignee">Kit</span><span class="chip">24 Jul</span><span class="chip">medium</span><span class="chip progress">0/1</span></div><div class="subtasks"><label class="subtask"><input type="checkbox" data-sub="0"><span>Add in the feature to Quality Welcome/About pages</span></label></div></div><div class="task p-high" draggable="true" data-id="mrm0beuxupsxu"><div class="actions"><button title="Edit" data-act="edit">✎</button><button title="Delete" data-act="del">✕</button></div><div class="title">Establish Quality Service Model</div><div class="meta"><span class="chip assignee">Kit</span><span class="chip">22 Jul</span><span class="chip">high</span></div></div><div class="task p-medium" draggable="true" data-id="mrm0e4luuezfh"><div class="actions"><button title="Edit" data-act="edit">✎</button><button title="Delete" data-act="del">✕</button></div><div class="title">Twenty Ticker Challenge Launch</div><div class="meta"><span class="chip assignee">Kit, Mark</span><span class="chip">28 Aug</span><span class="chip">medium</span><span class="chip progress">0/1</span></div><div class="subtasks"><label class="subtask"><input type="checkbox" data-sub="0"><span>Connect up to BTrend site</span></label></div></div></div><div class="col" data-status="done"><h2>Done <span class="count">1</span></h2><div class="task p-high done" draggable="true" data-id="mrm0cnucao0lc"><div class="actions"><button title="Edit" data-act="edit">✎</button><button title="Delete" data-act="del">✕</button></div><div class="title">Finish Quality Portfolio</div><div class="meta"><span class="chip assignee">Kit, Charlie, Laura</span><span class="chip">17 Jul</span><span class="chip">high</span></div></div></div></div>
+<div class="goals hidden" id="goalsView"><div class="goal"><div class="actions"><button title="Edit" data-act="edit">✎</button><button title="Delete" data-act="del">✕</button></div><div class="title">Twitter</div><div class="meta"><span class="chip assignee">Kit</span><span class="chip">By 31 Dec</span></div><div class="bar"><div style="width:65%"></div></div><div class="nums"><span>650 Followers of 1000</span><span>65%</span></div></div></div>
+
+<dialog id="taskDialog">
+  <h3 id="dialogTitle">New task</h3>
+  <form id="taskForm" method="dialog">
+    <div class="field">
+      <label for="fTitle">Task</label>
+      <input id="fTitle" required="" maxlength="200" placeholder="What needs doing?">
+    </div>
+    <div class="field">
+      <label for="fAssignee">Assignee</label>
+      <input id="fAssignee" maxlength="60" placeholder="Name" list="assigneeList">
+      <datalist id="assigneeList"><option value="Charlie, Kit"></option><option value="Charlie, Kit, Laura"></option><option value="Kit"></option><option value="Kit, Charlie, Laura"></option><option value="Kit, Mark"></option><option value="Laura"></option></datalist>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label for="fDue">Due date</label>
+        <input id="fDue" type="date">
+      </div>
+      <div class="field">
+        <label for="fPriority">Priority</label>
+        <select id="fPriority">
+          <option value="high">High</option>
+          <option value="medium" selected="">Medium</option>
+          <option value="low">Low</option>
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label>Subtasks</label>
+      <div class="sub-editor" id="subEditor"></div>
+      <button type="button" id="addSubBtn">+ Add subtask</button>
+    </div>
+    <div class="field">
+      <label for="fStatus">Status</label>
+      <select id="fStatus">
+        <option value="todo">To do</option>
+        <option value="inprogress">In progress</option>
+        <option value="done">Done</option>
+      </select>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" id="cancelBtn">Cancel</button>
+      <button type="submit" class="primary">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="goalDialog">
+  <h3 id="goalDialogTitle">Edit goal</h3>
+  <form id="goalForm" method="dialog">
+    <div class="field">
+      <label for="gTitle">Goal</label>
+      <input id="gTitle" required="" maxlength="200" placeholder="e.g. Reach 100 newsletter signups">
+    </div>
+    <div class="row">
+      <div class="field">
+        <label for="gOwner">Owner</label>
+        <input id="gOwner" maxlength="60" placeholder="Name" list="assigneeList">
+      </div>
+      <div class="field">
+        <label for="gTarget">Target date</label>
+        <input id="gTarget" type="date">
+      </div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label for="gCurrent">Current</label>
+        <input id="gCurrent" type="number" min="0" step="any" value="0">
+      </div>
+      <div class="field">
+        <label for="gGoalVal">Target</label>
+        <input id="gGoalVal" type="number" min="0" step="any" value="100">
+      </div>
+      <div class="field">
+        <label for="gUnit">Unit (optional)</label>
+        <input id="gUnit" maxlength="30" placeholder="e.g. signups, %">
+      </div>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" id="goalCancelBtn">Cancel</button>
+      <button type="submit" class="primary">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+(function () {
+  const STORAGE_KEY = 'team-todo-v1';
+  const GOALS_KEY = 'team-goals-v1';
+  const COLUMNS = [
+    { id: 'todo', label: 'To do' },
+    { id: 'inprogress', label: 'In progress' },
+    { id: 'done', label: 'Done' },
+  ];
+
+  let tasks = load(STORAGE_KEY);
+  let goals = load(GOALS_KEY);
+  let editingId = null;
+  let editingGoalId = null;
+  let activeTab = 'board';
+
+  const board = document.getElementById('board');
+  const goalsView = document.getElementById('goalsView');
+  const dialog = document.getElementById('taskDialog');
+  const goalDialog = document.getElementById('goalDialog');
+  const form = document.getElementById('taskForm');
+  const filterAssignee = document.getElementById('filterAssignee');
+  const addBtn = document.getElementById('addBtn');
+
+  function load(key) {
+    try { return JSON.parse(localStorage.getItem(key)) || []; }
+    catch { return []; }
+  }
+  function save() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+    localStorage.setItem(GOALS_KEY, JSON.stringify(goals));
+  }
+  function uid() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  }
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[c]));
+  }
+  function todayStr() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  function fmtDate(iso) {
+    const [y, m, d] = iso.split('-').map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  }
+
+  function render() {
+    const filter = filterAssignee.value;
+    board.innerHTML = '';
+    for (const col of COLUMNS) {
+      const items = tasks.filter(t => t.status === col.id && (!filter || t.assignee === filter));
+      const el = document.createElement('div');
+      el.className = 'col';
+      el.dataset.status = col.id;
+      el.innerHTML = '<h2>' + col.label + ' <span class="count">' + items.length + '</span></h2>';
+      if (!items.length) {
+        el.insertAdjacentHTML('beforeend', '<div class="empty">No tasks</div>');
+      }
+      for (const t of items) el.appendChild(taskCard(t, col.id));
+      addDropHandlers(el);
+      board.appendChild(el);
+    }
+    renderAssignees();
+  }
+
+  function taskCard(t, colId) {
+    const card = document.createElement('div');
+    card.className = 'task p-' + t.priority + (colId === 'done' ? ' done' : '');
+    card.draggable = true;
+    card.dataset.id = t.id;
+    const overdue = t.due && t.due < todayStr() && colId !== 'done';
+    const subs = t.subtasks || [];
+    const doneCount = subs.filter(s => s.done).length;
+    card.innerHTML =
+      '<div class="actions">' +
+        '<button title="Edit" data-act="edit">&#9998;</button>' +
+        '<button title="Delete" data-act="del">&#10005;</button>' +
+      '</div>' +
+      '<div class="title">' + esc(t.title) + '</div>' +
+      '<div class="meta">' +
+        (t.assignee ? '<span class="chip assignee">' + esc(t.assignee) + '</span>' : '') +
+        (t.due ? '<span class="chip' + (overdue ? ' overdue' : '') + '">' + (overdue ? 'Overdue · ' : '') + fmtDate(t.due) + '</span>' : '') +
+        '<span class="chip">' + t.priority + '</span>' +
+        (subs.length ? '<span class="chip progress">' + doneCount + '/' + subs.length + '</span>' : '') +
+      '</div>' +
+      (subs.length ?
+        '<div class="subtasks">' + subs.map((s, i) =>
+          '<label class="subtask' + (s.done ? ' checked' : '') + '">' +
+            '<input type="checkbox" data-sub="' + i + '"' + (s.done ? ' checked' : '') + '>' +
+            '<span>' + esc(s.text) + '</span>' +
+          '</label>').join('') +
+        '</div>' : '');
+
+    card.querySelectorAll('[data-sub]').forEach(cb => {
+      cb.addEventListener('change', () => {
+        t.subtasks[Number(cb.dataset.sub)].done = cb.checked;
+        save(); render();
+      });
+    });
+
+    card.addEventListener('dragstart', e => {
+      e.dataTransfer.setData('text/plain', t.id);
+      card.classList.add('dragging');
+    });
+    card.addEventListener('dragend', () => card.classList.remove('dragging'));
+    card.querySelector('[data-act="edit"]').onclick = () => openDialog(t);
+    card.querySelector('[data-act="del"]').onclick = () => {
+      if (confirm('Delete "' + t.title + '"?')) {
+        tasks = tasks.filter(x => x.id !== t.id);
+        save(); render();
+      }
+    };
+    return card;
+  }
+
+  function addDropHandlers(col) {
+    col.addEventListener('dragover', e => { e.preventDefault(); col.classList.add('dragover'); });
+    col.addEventListener('dragleave', () => col.classList.remove('dragover'));
+    col.addEventListener('drop', e => {
+      e.preventDefault();
+      col.classList.remove('dragover');
+      const id = e.dataTransfer.getData('text/plain');
+      const t = tasks.find(x => x.id === id);
+      if (t && t.status !== col.dataset.status) {
+        t.status = col.dataset.status;
+        save(); render();
+      }
+    });
+  }
+
+  function renderAssignees() {
+    const names = [...new Set(tasks.map(t => t.assignee).filter(Boolean))].sort();
+    const current = filterAssignee.value;
+    filterAssignee.innerHTML = '<option value="">Everyone</option>' +
+      names.map(n => '<option' + (n === current ? ' selected' : '') + '>' + esc(n) + '</option>').join('');
+    document.getElementById('assigneeList').innerHTML =
+      names.map(n => '<option value="' + esc(n) + '">').join('');
+  }
+
+  const subEditor = document.getElementById('subEditor');
+
+  function addSubRow(sub) {
+    const row = document.createElement('div');
+    row.className = 'sub-row';
+    row.innerHTML =
+      '<input type="text" maxlength="120" placeholder="Subtask" value="' + esc(sub ? sub.text : '') + '">' +
+      '<button type="button" title="Remove">&#10005;</button>';
+    row.dataset.done = sub && sub.done ? '1' : '';
+    row.querySelector('button').onclick = () => row.remove();
+    subEditor.appendChild(row);
+    return row;
+  }
+
+  function openDialog(t) {
+    editingId = t ? t.id : null;
+    document.getElementById('dialogTitle').textContent = t ? 'Edit task' : 'New task';
+    document.getElementById('fTitle').value = t ? t.title : '';
+    document.getElementById('fAssignee').value = t ? t.assignee : '';
+    document.getElementById('fDue').value = t ? t.due : '';
+    document.getElementById('fPriority').value = t ? t.priority : 'medium';
+    document.getElementById('fStatus').value = t ? t.status : 'todo';
+    subEditor.innerHTML = '';
+    (t && t.subtasks || []).forEach(addSubRow);
+    dialog.showModal();
+    document.getElementById('fTitle').focus();
+  }
+
+  document.getElementById('addSubBtn').onclick = () => {
+    addSubRow(null).querySelector('input').focus();
+  };
+
+  form.addEventListener('submit', () => {
+    const data = {
+      title: document.getElementById('fTitle').value.trim(),
+      assignee: document.getElementById('fAssignee').value.trim(),
+      due: document.getElementById('fDue').value,
+      priority: document.getElementById('fPriority').value,
+      status: document.getElementById('fStatus').value,
+      subtasks: [...subEditor.querySelectorAll('.sub-row')]
+        .map(r => ({ text: r.querySelector('input').value.trim(), done: !!r.dataset.done }))
+        .filter(s => s.text),
+    };
+    if (!data.title) return;
+    if (editingId) {
+      Object.assign(tasks.find(x => x.id === editingId), data);
+    } else {
+      tasks.push({ id: uid(), created: todayStr(), ...data });
+    }
+    save(); render();
+  });
+
+  // ---- Goals & Targets ----
+  function renderGoals() {
+    goalsView.innerHTML = '';
+    if (!goals.length) {
+      goalsView.innerHTML = '<div class="empty">No goals yet — add one with “+ New goal”.</div>';
+      return;
+    }
+    for (const g of goals) {
+      const pct = g.target > 0 ? Math.min(100, Math.round(g.current / g.target * 100)) : 0;
+      const hit = g.target > 0 && g.current >= g.target;
+      const overdue = g.due && g.due < todayStr() && !hit;
+      const el = document.createElement('div');
+      el.className = 'goal';
+      el.innerHTML =
+        '<div class="actions">' +
+          '<button title="Edit" data-act="edit">&#9998;</button>' +
+          '<button title="Delete" data-act="del">&#10005;</button>' +
+        '</div>' +
+        '<div class="title">' + esc(g.title) + '</div>' +
+        '<div class="meta">' +
+          (g.owner ? '<span class="chip assignee">' + esc(g.owner) + '</span>' : '') +
+          (g.due ? '<span class="chip' + (overdue ? ' overdue' : '') + '">' + (overdue ? 'Overdue · ' : 'By ') + fmtDate(g.due) + '</span>' : '') +
+          (hit ? '<span class="chip progress">Target hit</span>' : '') +
+        '</div>' +
+        '<div class="bar"><div' + (hit ? ' class="hit"' : '') + ' style="width:' + pct + '%"></div></div>' +
+        '<div class="nums"><span>' + g.current + (g.unit ? ' ' + esc(g.unit) : '') + ' of ' + g.target + '</span><span>' + pct + '%</span></div>';
+      el.querySelector('[data-act="edit"]').onclick = () => openGoalDialog(g);
+      el.querySelector('[data-act="del"]').onclick = () => {
+        if (confirm('Delete goal "' + g.title + '"?')) {
+          goals = goals.filter(x => x.id !== g.id);
+          save(); renderGoals();
+        }
+      };
+      goalsView.appendChild(el);
+    }
+  }
+
+  function openGoalDialog(g) {
+    editingGoalId = g ? g.id : null;
+    document.getElementById('goalDialogTitle').textContent = g ? 'Edit goal' : 'New goal';
+    document.getElementById('gTitle').value = g ? g.title : '';
+    document.getElementById('gOwner').value = g ? g.owner : '';
+    document.getElementById('gTarget').value = g ? g.due : '';
+    document.getElementById('gCurrent').value = g ? g.current : 0;
+    document.getElementById('gGoalVal').value = g ? g.target : 100;
+    document.getElementById('gUnit').value = g ? (g.unit || '') : '';
+    goalDialog.showModal();
+    document.getElementById('gTitle').focus();
+  }
+
+  document.getElementById('goalForm').addEventListener('submit', () => {
+    const data = {
+      title: document.getElementById('gTitle').value.trim(),
+      owner: document.getElementById('gOwner').value.trim(),
+      due: document.getElementById('gTarget').value,
+      current: Math.max(0, Number(document.getElementById('gCurrent').value) || 0),
+      target: Math.max(0, Number(document.getElementById('gGoalVal').value) || 0),
+      unit: document.getElementById('gUnit').value.trim(),
+    };
+    if (!data.title) return;
+    if (editingGoalId) {
+      Object.assign(goals.find(x => x.id === editingGoalId), data);
+    } else {
+      goals.push({ id: uid(), created: todayStr(), ...data });
+    }
+    save(); renderGoals();
+  });
+  document.getElementById('goalCancelBtn').onclick = () => goalDialog.close();
+
+  // ---- Tabs ----
+  function setTab(tab) {
+    activeTab = tab;
+    document.getElementById('tabBoard').classList.toggle('active', tab === 'board');
+    document.getElementById('tabGoals').classList.toggle('active', tab === 'goals');
+    board.classList.toggle('hidden', tab !== 'board');
+    goalsView.classList.toggle('hidden', tab !== 'goals');
+    filterAssignee.classList.toggle('hidden', tab !== 'board');
+    addBtn.textContent = tab === 'board' ? '+ New task' : '+ New goal';
+    tab === 'board' ? render() : renderGoals();
+  }
+  document.getElementById('tabBoard').onclick = () => setTab('board');
+  document.getElementById('tabGoals').onclick = () => setTab('goals');
+
+  addBtn.onclick = () => activeTab === 'board' ? openDialog(null) : openGoalDialog(null);
+  document.getElementById('cancelBtn').onclick = () => dialog.close();
+  filterAssignee.onchange = render;
+
+  document.getElementById('exportBtn').onclick = () => {
+    const blob = new Blob([JSON.stringify({ tasks, goals }, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'team-todo-' + todayStr() + '.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  document.getElementById('importBtn').onclick = () =>
+    document.getElementById('importFile').click();
+
+  document.getElementById('importFile').onchange = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result);
+        // Old exports were a bare task array; new ones are { tasks, goals }
+        const rawTasks = Array.isArray(data) ? data : data.tasks;
+        const rawGoals = Array.isArray(data) ? goals : (data.goals || []);
+        if (!Array.isArray(rawTasks) || !Array.isArray(rawGoals)) throw new Error();
+        const validTasks = rawTasks.filter(t => t && t.id && t.title &&
+          ['todo','inprogress','done'].includes(t.status));
+        const validGoals = rawGoals.filter(g => g && g.id && g.title);
+        if (confirm('Replace current data with ' + validTasks.length + ' task(s) and ' + validGoals.length + ' goal(s)?')) {
+          tasks = validTasks;
+          goals = validGoals;
+          save(); render(); renderGoals();
+        }
+      } catch {
+        alert('Could not read that file — expected a JSON export from this app.');
+      }
+      e.target.value = '';
+    };
+    reader.readAsText(file);
+  };
+
+  render();
+})();
+</script>
+
+
+</body></html>
